@@ -86,6 +86,7 @@
 			 * A positional array of the items in the grid
 			 */
 			this.grid = [];
+			this.grid2d = [];
 
 			/**
 			 * Clean up after yourself
@@ -268,24 +269,13 @@
 				if (excludeItems && !(excludeItems instanceof Array)) {
 					excludeItems = [excludeItems];
 				}
-				var sizeY = 1;
-				while (row > -1) {
-					var sizeX = 1,
-						col = column;
-					while (col > -1) {
-						var items = this.grid[row];
-						if (items) {
-							var item = items[col];
-							if (item && (!excludeItems || excludeItems.indexOf(item) === -1) && item.sizeX >= sizeX && item.sizeY >= sizeY) {
-								return item;
-							}
-						}
-						++sizeX;
-						--col;
+				if (this.grid2d[row * this.columns + column] !== undefined) {
+					item = this.grid2d[row * this.columns + column];
+					if (item && (!excludeItems || excludeItems.indexOf(item) === -1)) {
+						return item;
 					}
-					--row;
-					++sizeY;
 				}
+
 				return null;
 			};
 
@@ -339,11 +329,26 @@
 						if (oldRow && oldRow[item.oldColumn] === item) {
 							delete oldRow[item.oldColumn];
 						}
+
+						// Clear out previous position and set new position
+						for (var x = 0; x < item.sizeX; x++) {
+							for (var y = 0; y < item.sizeY; y++) {
+								var index = (item.previousRow + y) * this.columns + x + item.previousCol;
+								if (item.previousRow !== null && typeof item.previousRow !== 'undefined' &&
+										item.previousCol !== null && typeof item.previousCol !== 'undefined' &&
+										this.grid2d[index] === item) {
+									delete this.grid2d[index];
+								}
+							}
+						}
 					}
 				}
 
+
 				item.oldRow = item.row = row;
 				item.oldColumn = item.col = column;
+				item.previousRow = item.row;
+				item.previousCol = item.col;
 
 				this.moveOverlappingItems(item, ignoreItems);
 
@@ -352,11 +357,28 @@
 				}
 				this.grid[row][column] = item;
 
+				for (var x = 0; x < item.sizeX; x++) {
+					for (var y = 0; y < item.sizeY; y++) {
+						this.grid2d[(row + y) * this.columns + x + column] = item;
+					}
+				}
+
 				if (this.movingItem === item) {
 					this.floatItemUp(item);
 				}
 				this.layoutChanged();
 			};
+
+			this.extend2dGrid = function(width, height) {
+				for (var x = 0; x < width; x++) {
+					this.grid2d[this.grid2d.length + x] = new Array(this.grid2d[0].length);
+				}
+				for (var y = 0; y < height; y++) {
+					for (var x = 0; x < this.grid2d[0].length; x++) {
+						this.grid2d[x][this.grid2d.length + y] = null;
+					}
+				}
+			}
 
 			/**
 			 * Trade row and column if item1 with item2
@@ -487,6 +509,7 @@
 				if (this.floating === false) {
 					return;
 				}
+
 				var colIndex = item.col,
 					sizeY = item.sizeY,
 					sizeX = item.sizeX,
@@ -823,6 +846,10 @@
 		this.minSizeY = 0;
 		this.maxSizeX = null;
 		this.maxSizeY = null;
+		this.oldRow = null;
+		this.oldColumn = null;
+		this.previousRow = null;
+		this.previousCol = null;
 
 		this.init = function($element, gridster) {
 			this.$element = $element;
@@ -1094,7 +1121,7 @@
 					var pageX = pointerObj.pageX;
 					var pageY = pointerObj.pageY;
 
-					if (theEvtObj.type.match(/(start|down)$/i)) {
+					if (/(start|down)$/i.test(theEvtObj.type)) {
 						//  clause for processing MSPointerDown, touchstart, and mousedown
 
 						//  refresh the document-to-target delta on start in case the target has moved relative to document
@@ -1144,7 +1171,7 @@
 								document.addEventListener('mouseup', doEvent, false);
 							}
 						}
-					} else if (theEvtObj.type.match(/move$/i)) {
+					} else if (/move$/i.test(theEvtObj.type)) {
 						//  clause handles mousemove, MSPointerMove, and touchmove
 
 						if (lastXYById[pointerId] && !(lastXYById[pointerId].x === pageX && lastXYById[pointerId].y === pageY)) {
@@ -1164,7 +1191,7 @@
 							lastXYById[pointerId].x = pageX;
 							lastXYById[pointerId].y = pageY;
 						}
-					} else if (lastXYById[pointerId] && theEvtObj.type.match(/(up|end|cancel)$/i)) {
+					} else if (lastXYById[pointerId] && /(up|end|cancel)$/i.test(theEvtObj.type)) {
 						//  clause handles up/end/cancel
 
 						if (endEvent && prevent) {
