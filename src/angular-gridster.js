@@ -277,26 +277,6 @@
 				}
 
 				return null;
-
-				var sizeY = 1;
-				while (row > -1) {
-					var sizeX = 1,
-						col = column;
-					while (col > -1) {
-						var items = this.grid[row];
-						if (items) {
-							var item = items[col];
-							if (item && (!excludeItems || excludeItems.indexOf(item) === -1) && item.sizeX >= sizeX && item.sizeY >= sizeY) {
-								return item;
-							}
-						}
-						++sizeX;
-						--col;
-					}
-					--row;
-					++sizeY;
-				}
-				return null;
 			};
 
 			/**
