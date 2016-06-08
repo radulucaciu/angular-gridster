@@ -270,7 +270,7 @@
 					excludeItems = [excludeItems];
 				}
 				if (this.grid2d[row * this.columns + column] !== undefined) {
-					item = this.grid2d[row * this.columns + column];
+					var item = this.grid2d[row * this.columns + column];
 					if (item && (!excludeItems || excludeItems.indexOf(item) === -1)) {
 						return item;
 					}
