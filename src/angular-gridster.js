@@ -1492,6 +1492,7 @@
 							gridster.draggable.start(event, $el, itemOptions);
 						}
 					});
+					item.gridsterItemDragStart({ item: item });
 				}
 
 				function drag(event) {
@@ -1587,6 +1588,7 @@
 							gridster.draggable.stop(event, $el, itemOptions);
 						}
 					});
+					item.gridsterItemDragStop({ item: item });
 				}
 
 				var enabled = null;
@@ -2013,6 +2015,10 @@
 				restrict: 'EA',
 				controller: 'GridsterItemCtrl',
 				controllerAs: 'gridsterItem',
+				bindToController: {
+					gridsterItemDragStart: '&',
+					gridsterItemDragStop: '&',
+				},
 				require: ['^gridster', 'gridsterItem'],
 				link: function(scope, $el, attrs, controllers) {
 					var optionsKey = attrs.gridsterItem,
