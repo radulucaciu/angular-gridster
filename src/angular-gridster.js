@@ -51,7 +51,8 @@
 			enabled: true,
 			scrollSensitivity: 20, // Distance in pixels from the edge of the viewport after which the viewport should scroll, relative to pointer
 			scrollSpeed: 15 // Speed at which the window should scroll once the mouse pointer gets within scrollSensitivity distance
-		}
+		},
+		scrollParent: null
 	})
 
 	.controller('GridsterCtrl', ['gridsterConfig', '$timeout',
@@ -1350,8 +1351,8 @@
 		};
 	}])
 
-	.factory('GridsterDraggable', ['$document', '$window', 'GridsterTouch',
-		function($document, $window, GridsterTouch) {
+	.factory('GridsterDraggable', ['$document', '$window', '$timeout', 'GridsterTouch',
+		function($document, $window, $timeout, GridsterTouch) {
 			function GridsterDraggable($el, scope, gridster, item, itemOptions) {
 
 				var elmX, elmY, elmW, elmH,
@@ -1365,10 +1366,14 @@
 
 					minTop = 0,
 					minLeft = 0,
-					realdocument = $document[0];
+					realdocument = $document[0],
+					scrollingDelay = 50,
+					continuousScrolling = null;
 
 				var originalCol, originalRow;
 				var inputTags = ['select', 'input', 'textarea', 'button'];
+
+				var scrollContainer = gridster.scrollParent ? angular.element(document.querySelector('#' + gridster.scrollParent))[0] : realdocument.body;
 
 				function mouseDown(e) {
 					if (inputTags.indexOf(e.target.nodeName.toLowerCase()) !== -1) {
@@ -1496,11 +1501,11 @@
 				}
 
 				function drag(event) {
+					scrollViewport(event);
+
 					var oldRow = item.row,
 						oldCol = item.col,
-						hasCallback = gridster.draggable && gridster.draggable.drag,
-						scrollSensitivity = gridster.draggable.scrollSensitivity,
-						scrollSpeed = gridster.draggable.scrollSpeed;
+						hasCallback = gridster.draggable && gridster.draggable.drag;
 
 					var row = gridster.pixelsToRows(elmY);
 					var col = gridster.pixelsToColumns(elmX);
@@ -1551,18 +1556,6 @@
 						item.col = col;
 					}
 
-					if (event.pageY - realdocument.body.scrollTop < scrollSensitivity) {
-						realdocument.body.scrollTop = realdocument.body.scrollTop - scrollSpeed;
-					} else if ($window.innerHeight - (event.pageY - realdocument.body.scrollTop) < scrollSensitivity) {
-						realdocument.body.scrollTop = realdocument.body.scrollTop + scrollSpeed;
-					}
-
-					if (event.pageX - realdocument.body.scrollLeft < scrollSensitivity) {
-						realdocument.body.scrollLeft = realdocument.body.scrollLeft - scrollSpeed;
-					} else if ($window.innerWidth - (event.pageX - realdocument.body.scrollLeft) < scrollSensitivity) {
-						realdocument.body.scrollLeft = realdocument.body.scrollLeft + scrollSpeed;
-					}
-
 					if (hasCallback || oldRow !== item.row || oldCol !== item.col) {
 						scope.$apply(function() {
 							if (hasCallback) {
@@ -1570,6 +1563,54 @@
 							}
 						});
 					}
+				}
+
+				function scrollViewport(event) {
+					var delta = null,
+						maxScrollTop = null,
+						scrollSensitivity = gridster.draggable.scrollSensitivity,
+						scrollSpeed = gridster.draggable.scrollSpeed,
+						viewport = {
+							top: scrollContainer.offsetTop,
+							scrollTop: scrollContainer.scrollTop,
+							height: scrollContainer.clientHeight,
+							left: scrollContainer.offsetLeft,
+							scrollLeft: scrollContainer.scrollLeft,
+							width: scrollContainer.clientWidth
+						};
+
+					if (continuousScrolling) {
+						$timeout.cancel(continuousScrolling);
+					}
+
+					if (event.pageY - viewport.top < scrollSensitivity) {
+						delta = scrollContainer.scrollTop - Math.max(viewport.scrollTop - scrollSpeed, 0);
+						scrollContainer.scrollTop -= delta;
+						mOffY -= delta;
+						scheduleScrolling(event);
+					} else if (viewport.height - (event.pageY - viewport.top) < scrollSensitivity) {
+						maxScrollTop = scrollContainer.scrollHeight - (viewport.height - viewport.top);
+						delta = Math.min(maxScrollTop, viewport.scrollTop + scrollSpeed) - scrollContainer.scrollTop;
+						scrollContainer.scrollTop += delta;
+						mOffY += delta;
+						scheduleScrolling(event);
+					}
+
+					if (event.pageX - viewport.left < scrollSensitivity) {
+						scrollContainer.scrollLeft = viewport.scrollLeft - scrollSpeed;
+						mOffX -= scrollSpeed;
+					} else if (viewport.width - (event.pageX - viewport.left) < scrollSensitivity) {
+						scrollContainer.scrollLeft = viewport.scrollLeft + scrollSpeed;
+						mOffX += scrollSpeed;
+					}
+				}
+
+				function scheduleScrolling(event) {
+					// Schedule continuous scrolling by 're-generating' the mouse move event
+					$timeout.cancel(continuousScrolling);
+					continuousScrolling = $timeout(function() {
+						mouseMove(event);
+					}, scrollingDelay);
 				}
 
 				function dragStop(event) {
