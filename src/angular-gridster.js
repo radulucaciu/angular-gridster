@@ -255,7 +255,29 @@
 						break;
 					}
 				}
+				this.removeFromGrid(item);
 				this.layoutChanged();
+			};
+
+			this.removeFromGrid = function(item) {
+				for (var x = 0; x < item.sizeX; x++) {
+					for (var y = 0; y < item.sizeY; y++) {
+						var index = (item.row + y) * this.columns + x + item.col;
+						if (item.row !== null && typeof item.row !== 'undefined' &&
+								item.col !== null && typeof item.col !== 'undefined' &&
+								this.grid2d[index] === item) {
+							delete this.grid2d[index];
+						}
+					}
+				}
+			};
+
+			this.addToGrid = function(item) {
+				for (var x = 0; x < item.sizeX; x++) {
+					for (var y = 0; y < item.sizeY; y++) {
+						this.grid2d[(item.row + y) * this.columns + x + item.col] = item;
+					}
+				}
 			};
 
 			/**
@@ -332,16 +354,7 @@
 						}
 
 						// Clear out previous position and set new position
-						for (var x = 0; x < item.sizeX; x++) {
-							for (var y = 0; y < item.sizeY; y++) {
-								var index = (item.previousRow + y) * this.columns + x + item.previousCol;
-								if (item.previousRow !== null && typeof item.previousRow !== 'undefined' &&
-										item.previousCol !== null && typeof item.previousCol !== 'undefined' &&
-										this.grid2d[index] === item) {
-									delete this.grid2d[index];
-								}
-							}
-						}
+						this.removeFromGrid(item);
 					}
 				}
 
@@ -358,28 +371,13 @@
 				}
 				this.grid[row][column] = item;
 
-				for (var x = 0; x < item.sizeX; x++) {
-					for (var y = 0; y < item.sizeY; y++) {
-						this.grid2d[(row + y) * this.columns + x + column] = item;
-					}
-				}
+				this.addToGrid(item);
 
 				if (this.movingItem === item) {
 					this.floatItemUp(item);
 				}
 				this.layoutChanged();
 			};
-
-			this.extend2dGrid = function(width, height) {
-				for (var x = 0; x < width; x++) {
-					this.grid2d[this.grid2d.length + x] = new Array(this.grid2d[0].length);
-				}
-				for (var y = 0; y < height; y++) {
-					for (var x = 0; x < this.grid2d[0].length; x++) {
-						this.grid2d[x][this.grid2d.length + y] = null;
-					}
-				}
-			}
 
 			/**
 			 * Trade row and column if item1 with item2
@@ -1500,12 +1498,21 @@
 					item.gridsterItemDragStart({ item: item });
 				}
 
+				function updateItemPosition(item, row, col) {
+					gridster.removeFromGrid(item);
+					item.row = row;
+					item.col = col;
+					gridster.addToGrid(item);
+				}
+
 				function drag(event) {
 					scrollViewport(event);
 
 					var oldRow = item.row,
 						oldCol = item.col,
-						hasCallback = gridster.draggable && gridster.draggable.drag;
+						hasCallback = gridster.draggable && gridster.draggable.drag,
+						scrollSensitivity = gridster.draggable.scrollSensitivity,
+						scrollSpeed = gridster.draggable.scrollSpeed;
 
 					var row = gridster.pixelsToRows(elmY);
 					var col = gridster.pixelsToColumns(elmX);
@@ -1552,8 +1559,7 @@
 					}
 
 					if (gridster.pushing !== false || !hasItemsInTheWay) {
-						item.row = row;
-						item.col = col;
+						updateItemPosition(item, row, col);
 					}
 
 					if (hasCallback || oldRow !== item.row || oldCol !== item.col) {
@@ -1911,10 +1917,12 @@
 
 					var canOccupy = row > -1 && col > -1 && sizeX + col <= gridster.columns && sizeY + row <= gridster.maxRows;
 					if (canOccupy && (gridster.pushing !== false || gridster.getItems(row, col, sizeX, sizeY, item).length === 0)) {
+						gridster.removeFromGrid(item);
 						item.row = row;
 						item.col = col;
 						item.sizeX = sizeX;
 						item.sizeY = sizeY;
+						gridster.addToGrid(item);
 					}
 					var isChanged = item.row !== oldRow || item.col !== oldCol || item.sizeX !== oldSizeX || item.sizeY !== oldSizeY;
 
