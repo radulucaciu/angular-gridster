@@ -50,7 +50,8 @@
 		draggable: { // options to pass to draggable handler
 			enabled: true,
 			scrollSensitivity: 20, // Distance in pixels from the edge of the viewport after which the viewport should scroll, relative to pointer
-			scrollSpeed: 15 // Speed at which the window should scroll once the mouse pointer gets within scrollSensitivity distance
+			scrollSpeed: 15, // Speed at which the window should scroll once the mouse pointer gets within scrollSensitivity distance
+			excludedItems: [] // CSS or ID of items that should not trigger draggin if clicked (for instance buttons or dropdowns) 
 		},
 		scrollParent: null
 	})
@@ -1029,7 +1030,7 @@
 	})
 
 	.factory('GridsterTouch', [function() {
-		return function GridsterTouch(target, startEvent, moveEvent, endEvent) {
+		return function GridsterTouch(target, startEvent, moveEvent, endEvent, excludedItems) {
 			var lastXYById = {};
 
 			//  Opera doesn't have Object.keys so we use this wrapper
@@ -1051,9 +1052,9 @@
 			var computeDocumentToElementDelta = function(theElement) {
 				var elementLeft = 0;
 				var elementTop = 0;
-				var oldIEUserAgent = navigator.userAgent.match(/\bMSIE\b/);
+				var oldIEUserAgent = (/\bMSIE\b/.test(navigator.userAgent));
 
-				for (var offsetElement = theElement; offsetElement != null; offsetElement = offsetElement.offsetParent) {
+				for (var offsetElement = theElement; offsetElement !== null; offsetElement = offsetElement.offsetParent) {
 					//  the following is a major hack for versions of IE less than 8 to avoid an apparent problem on the IEBlog with double-counting the offsets
 					//  this may not be a general solution to IE7's problem with offsetLeft/offsetParent
 					if (oldIEUserAgent &&
@@ -1078,7 +1079,6 @@
 
 			//  common event handler for the mouse/pointer/touch models and their down/start, move, up/end, and cancel events
 			var doEvent = function(theEvtObj) {
-
 				if (theEvtObj.type === 'mousemove' && numberOfKeys(lastXYById) === 0) {
 					return;
 				}
@@ -1249,6 +1249,7 @@
 					target.addEventListener('MSPointerMove', doEvent, false);
 					target.addEventListener('MSPointerUp', doEvent, false);
 					target.addEventListener('MSPointerCancel', doEvent, false);
+					this.preventBubblingFromExcludedItems(target, excludedItems, 'MSPointerDown');
 
 					//  css way to prevent panning in our target area
 					if (typeof target.style.msContentZooming !== 'undefined') {
@@ -1268,9 +1269,11 @@
 					target.addEventListener('touchmove', doEvent, false);
 					target.addEventListener('touchend', doEvent, false);
 					target.addEventListener('touchcancel', doEvent, false);
+					this.preventBubblingFromExcludedItems(target, excludedItems, 'touchstart');
 
 					//  mouse model
 					target.addEventListener('mousedown', doEvent, false);
+					this.preventBubblingFromExcludedItems(target, excludedItems, 'mousedown');
 
 					//  mouse model with capture
 					//  rejecting gecko because, unlike ie, firefox does not send events to target when the mouse is outside target
@@ -1299,6 +1302,15 @@
 						return false;
 					});
 				}
+			};
+
+			this.preventBubblingFromExcludedItems = function(target, excludedItems, event) {
+				angular.forEach(excludedItems, function(pattern) {
+					var $excludeElements = angular.element(target.querySelectorAll(pattern));
+					angular.forEach($excludeElements, function(element) {
+						element.addEventListener(event, function(event) { event.stopPropagation(); }, false);
+					});
+				});
 			};
 
 			this.disable = function() {
@@ -1672,7 +1684,7 @@
 						}
 
 						for (var h = 0, hl = $dragHandles.length; h < hl; ++h) {
-							unifiedInputs[h] = new GridsterTouch($dragHandles[h], mouseDown, mouseMove, mouseUp);
+							unifiedInputs[h] = new GridsterTouch($dragHandles[h], mouseDown, mouseMove, mouseUp, gridster.draggable.excludedItems);
 							unifiedInputs[h].enable();
 						}
 					});
