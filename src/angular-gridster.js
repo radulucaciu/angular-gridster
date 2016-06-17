@@ -276,7 +276,10 @@
 			this.addToGrid = function(item) {
 				for (var x = 0; x < item.sizeX; x++) {
 					for (var y = 0; y < item.sizeY; y++) {
-						this.grid2d[(item.row + y) * this.columns + x + item.col] = item;
+						var gridIndex = (item.row + y) * this.columns + x + item.col;
+						if (this.grid2d[gridIndex] === undefined || this.grid2d[gridIndex] === null) {
+							this.grid2d[gridIndex] = item;
+						}
 					}
 				}
 			};
