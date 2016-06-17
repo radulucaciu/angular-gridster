@@ -356,17 +356,17 @@
 						if (oldRow && oldRow[item.oldColumn] === item) {
 							delete oldRow[item.oldColumn];
 						}
-
-						// Clear out previous position and set new position
-						this.removeFromGrid(item);
 					}
 				}
 
+				this.removeFromGrid(item);
 
 				item.oldRow = item.row = row;
 				item.oldColumn = item.col = column;
 				item.previousRow = item.row;
 				item.previousCol = item.col;
+
+				this.addToGrid(item);
 
 				this.moveOverlappingItems(item, ignoreItems);
 
@@ -374,8 +374,6 @@
 					this.grid[row] = [];
 				}
 				this.grid[row][column] = item;
-
-				this.addToGrid(item);
 
 				if (this.movingItem === item) {
 					this.floatItemUp(item);
@@ -395,10 +393,17 @@
 
 				var item1Row = item1.row;
 				var item1Col = item1.col;
+
+				this.removeFromGrid(item1);
+				this.removeFromGrid(item2);
+
 				item1.row = item2.row;
 				item1.col = item2.col;
+				this.addToGrid(item1);
+
 				item2.row = item1Row;
 				item2.col = item1Col;
+				this.addToGrid(item2);
 			};
 
 			/**
@@ -476,7 +481,9 @@
 					return;
 				}
 				while (item.row < newRow) {
+					this.removeFromGrid(item);
 					++item.row;
+					this.addToGrid(item);
 					this.moveOverlappingItems(item, ignoreItems);
 				}
 				this.putItem(item, item.row, item.col, ignoreItems);
@@ -1513,13 +1520,6 @@
 					item.gridsterItemDragStart({ item: item });
 				}
 
-				function updateItemPosition(item, row, col) {
-					gridster.removeFromGrid(item);
-					item.row = row;
-					item.col = col;
-					gridster.addToGrid(item);
-				}
-
 				function drag(event) {
 					scrollViewport(event);
 
@@ -1535,6 +1535,7 @@
 					var itemsInTheWay = gridster.getItems(row, col, item.sizeX, item.sizeY, item);
 					var hasItemsInTheWay = itemsInTheWay.length !== 0;
 
+					gridster.removeFromGrid(item);
 					if (gridster.swapping === true && hasItemsInTheWay) {
 						var boundingBoxItem = gridster.getBoundingBox(itemsInTheWay),
 							sameSize = boundingBoxItem.sizeX === item.sizeX && boundingBoxItem.sizeY === item.sizeY,
@@ -1574,8 +1575,11 @@
 					}
 
 					if (gridster.pushing !== false || !hasItemsInTheWay) {
-						updateItemPosition(item, row, col);
+						item.row = row;
+						item.col = col;
 					}
+
+					gridster.addToGrid(item);
 
 					if (hasCallback || oldRow !== item.row || oldCol !== item.col) {
 						scope.$apply(function() {
