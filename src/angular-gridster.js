@@ -123,6 +123,9 @@
 					angular.extend(this.resizable, options.resizable);
 					delete(options.resizable);
 				}
+				if (options.floatCallback) {
+					this.floatCallback = options.floatCallback;
+				}
 
 				angular.extend(this, options);
 
@@ -496,6 +499,7 @@
 				if (this.floating === false) {
 					return;
 				}
+				var callbackNeeded = false;
 				for (var rowIndex = 0, l = this.grid.length; rowIndex < l; ++rowIndex) {
 					var columns = this.grid[rowIndex];
 					if (!columns) {
@@ -504,9 +508,13 @@
 					for (var colIndex = 0, len = columns.length; colIndex < len; ++colIndex) {
 						var item = columns[colIndex];
 						if (item) {
-							this.floatItemUp(item);
+							var didFloatItem = this.floatItemUp(item);
+							callbackNeeded = callbackNeeded || didFloatItem;
 						}
 					}
+				}
+				if (callbackNeeded && this.floatCallback) {
+					$timeout(this.floatCallback);
 				}
 			};
 
@@ -517,7 +525,7 @@
 			 */
 			this.floatItemUp = function(item) {
 				if (this.floating === false) {
-					return;
+					return false;
 				}
 
 				var colIndex = item.col,
@@ -538,7 +546,10 @@
 				}
 				if (bestRow !== null) {
 					this.putItem(item, bestRow, bestColumn);
+					return true;
 				}
+
+				return false;
 			};
 
 			/**
