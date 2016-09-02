@@ -163,7 +163,8 @@ $scope.gridsterOpts = {
 	   start: function(event, $element, widget) {}, // optional callback fired when drag is started,
 	   drag: function(event, $element, widget) {}, // optional callback fired when item is moved,
 	   stop: function(event, $element, widget) {} // optional callback fired when item is finished dragging
-	}
+	},
+	floatCallback: function() {} // optional callback fired when at least one element was floated up
 };
 ```
 
